@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Run To Me</title>
+<style>
+  /* ============================================================
+     RUN TO ME — a tiny romantic endless runner
+     Single-file HTML5. No dependencies.
+     ============================================================ */
+  :root{
+    --blush:#ffd6e0;
+    --blush-deep:#ff8aa8;
+    --cream:#fff6e8;
+    --cream-2:#ffeccb;
+    --gold:#e8a93a;
+    --gold-deep:#b07418;
+    --ink:#3a2230;
+    --ink-soft:#6b4658;
+    --shadow:#3a2230;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0;padding:0;height:100%;width:100%;
+    background:var(--blush);
+    color:var(--ink);
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Courier New", monospace;
+    overflow:hidden;
+    touch-action:none;
+    overscroll-behavior:none;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  #app{
+    position:fixed;inset:0;
+    display:flex;align-items:center;justify-content:center;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    background: linear-gradient(180deg,#ffe1ea 0%, #ffd0dc 60%, #ffc2c2 100%);
+  }
+  #stage{
+    position:relative;
+    width:100%;height:100%;
+    max-width:520px;max-height:100%;
+    margin:auto;
+    background:#ffe6ee;
+    border: 4px solid var(--ink);
+    box-shadow: 6px 6px 0 var(--shadow);
+    overflow:hidden;
+  }
+  canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;}
+  .screen{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    padding:18px 16px;
+    gap:12px;
+    overflow-y:auto;
+    background: linear-gradient(180deg,#fff6e8 0%, #ffd9e3 100%);
+  }
+  .hidden{display:none !important;}
+  h1,h2,h3{margin:0;font-weight:800;letter-spacing:1px;text-transform:uppercase;}
+  h1{font-size:28px;color:var(--ink);text-shadow:3px 3px 0 var(--blush-deep);}
+  h2{font-size:20px;color:var(--ink);text-shadow:2px 2px 0 var(--gold);}
+  h3{font-size:14px;color:var(--ink-soft);}
+  p{margin:4px 0;font-size:13px;line-height:1.4;color:var(--ink-soft);}
+  .card{
+    background:var(--cream);
+    border:3px solid var(--ink);
+    box-shadow: 5px 5px 0 var(--shadow);
+    padding:14px;
+    width:100%;
+    max-width:440px;
+  }
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;}
+  .label{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--ink);margin-bottom:6px;text-align:left;width:100%;}
+  button, .btn{
+    font-family:inherit;font-weight:800;text-transform:uppercase;letter-spacing:1px;
+    border:3px solid var(--ink);
+    background:var(--blush-deep);color:#fff;
+    padding:14px 18px;font-size:16px;
+    box-shadow: 4px 4px 0 var(--shadow);
+    cursor:pointer;
+    transition: transform .05s ease, box-shadow .05s ease;
+  }
+  button:active{transform: translate(3px,3px); box-shadow:1px 1px 0 var(--shadow);}
+  button.ghost{background:var(--cream-2);color:var(--ink);}
+  button.gold{background:var(--gold);color:var(--ink);}
+  input[type=text]{
+    font-family:inherit;font-size:16px;font-weight:700;
+    border:3px solid var(--ink);
+    background:#fff;color:var(--ink);
+    padding:10px 12px;width:100%;
+    box-shadow: inset 2px 2px 0 #f3d6dd;
+    outline:none;
+  }
+  .swatch{
+    width:34px;height:34px;
+    border:3px solid var(--ink);
+    box-shadow: 2px 2px 0 var(--shadow);
+    cursor:pointer;
+    display:inline-block;
+    position:relative;
+  }
+  .swatch.sel::after{
+    content:"";position:absolute;inset:-6px;
+    border:3px solid var(--gold-deep);
+    box-shadow: 2px 2px 0 var(--shadow);
+    pointer-events:none;
+  }
+  .chip{
+    padding:8px 12px;border:3px solid var(--ink);background:#fff;
+    font-weight:800;text-transform:uppercase;font-size:12px;letter-spacing:1px;
+    box-shadow: 2px 2px 0 var(--shadow);cursor:pointer;color:var(--ink);
+  }
+  .chip.sel{background:var(--gold);}
+  #previewWrap{
+    width:100%;
+    display:flex;align-items:center;justify-content:center;
+    background: linear-gradient(180deg,#cbe9ff,#ffd9e3);
+    border:3px solid var(--ink);
+    box-shadow: 4px 4px 0 var(--shadow);
+    height:180px;
+  }
+  #previewCanvas{width:140px;height:170px;image-rendering:pixelated;}
+  /* HUD */
+  #hud{
+    position:absolute;top:0;left:0;right:0;
+    padding: calc(env(safe-area-inset-top) + 8px) 10px 8px 10px;
+    display:flex;justify-content:space-between;align-items:flex-start;
+    font-weight:800;font-size:14px;color:var(--ink);
+    pointer-events:none;
+    text-shadow: 2px 2px 0 #fff;
+  }
+  #hud .pill{
+    background:var(--cream);border:3px solid var(--ink);
+    box-shadow:3px 3px 0 var(--shadow);
+    padding:4px 8px;margin:2px;
+  }
+  #note{
+    position:absolute;left:50%;top:18%;transform:translate(-50%,-50%) scale(.6);
+    background:var(--cream);border:3px solid var(--ink);
+    box-shadow:4px 4px 0 var(--shadow);
+    padding:10px 14px;font-weight:800;font-size:14px;text-align:center;
+    max-width:80%;opacity:0;pointer-events:none;
+    transition: all .3s cubic-bezier(.2,1.4,.4,1);
+    color:var(--ink);
+  }
+  #note.show{opacity:1;transform:translate(-50%,0) scale(1);}
+  #flash{
+    position:absolute;inset:0;background:#ff3a5a;opacity:0;pointer-events:none;
+    transition:opacity .15s;
+  }
+  .footer-note{font-size:11px;color:var(--ink-soft);text-align:center;margin-top:6px;}
+  .title-banner{
+    background:var(--cream);border:3px solid var(--ink);
+    box-shadow:5px 5px 0 var(--shadow);
+    padding:12px 18px;text-align:center;width:100%;max-width:440px;
+  }
+  .small{font-size:11px;color:var(--ink-soft);}
+  .stats{display:flex;justify-content:space-around;font-weight:800;margin:8px 0;}
+  .stat{text-align:center;}
+  .stat .v{font-size:22px;color:var(--blush-deep);text-shadow:2px 2px 0 var(--gold);}
+  .stat .k{font-size:11px;text-transform:uppercase;color:var(--ink-soft);}
+  .edit-link{
+    position:absolute;top:8px;right:8px;
+    font-size:11px;text-transform:uppercase;color:var(--ink);
+    background:var(--cream-2);border:2px solid var(--ink);padding:4px 8px;
+    box-shadow:2px 2px 0 var(--shadow);cursor:pointer;font-weight:800;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="game"></canvas>
+
+    <!-- HUD overlay (game) -->
+    <div id="hud" class="hidden">
+      <div>
+        <div class="pill">♥ <span id="hudHearts">0</span></div>
+        <div class="pill">🐾 <span id="hudCats">0</span></div>
+      </div>
+      <div>
+        <div class="pill"><span id="hudDist">0</span>m</div>
+      </div>
+    </div>
+    <div id="note"></div>
+    <div id="flash"></div>
+
+    <!-- Character Creator -->
+    <div id="screenCreate" class="screen">
+      <div class="title-banner">
+        <h1>Run To Me</h1>
+        <p>build your runner</p>
+      </div>
+      <div id="previewWrap"><canvas id="previewCanvas" width="140" height="170"></canvas></div>
+      <div class="card">
+        <div class="label">Name</div>
+        <input id="nameInput" type="text" maxlength="14" placeholder="your name" />
+      </div>
+      <div class="card">
+        <div class="label">Presentation</div>
+        <div class="row" id="genderRow"></div>
+      </div>
+      <div class="card">
+        <div class="label">Hair Style</div>
+        <div class="row" id="hairStyleRow"></div>
+      </div>
+      <div class="card">
+        <div class="label">Hair Color</div>
+        <div class="row" id="hairColorRow"></div>
+      </div>
+      <div class="card">
+        <div class="label">Outfit Color</div>
+        <div class="row" id="outfitRow"></div>
+      </div>
+      <div class="card">
+        <div class="label">Skin Tone</div>
+        <div class="row" id="skinRow"></div>
+      </div>
+      <button id="confirmBtn">Confirm ♥</button>
+      <div class="footer-note">your design is saved on this device</div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="screenStart" class="screen hidden">
+      <div class="edit-link" id="editLink">Edit Character</div>
+      <div class="title-banner">
+        <h1 id="startTitle">Your Run</h1>
+        <p id="startTagline">run to me, my love</p>
+      </div>
+      <div id="startPreviewWrap" style="width:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#cbe9ff,#ffd9e3);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--shadow);height:200px;">
+        <canvas id="startPreviewCanvas" width="140" height="180" style="width:160px;height:200px;image-rendering:pixelated;"></canvas>
+      </div>
+      <div class="card">
+        <h3>How to play</h3>
+        <p>• Swipe left/right to switch lanes<br/>
+           • Swipe up to jump<br/>
+           • Desktop: ← → arrows + space<br/>
+           • Collect ♥ hearts and 🐾 cats<br/>
+           • Avoid the crocodiles!</p>
+      </div>
+      <button id="playBtn" class="gold">Start Running ♥</button>
+    </div>
+
+    <!-- Game Over -->
+    <div id="screenOver" class="screen hidden">
+      <div class="title-banner">
+        <h1>Caught!</h1>
+        <p id="overMsg">The crocodile got you this time — run back to me?</p>
+      </div>
+      <div class="card">
+        <div class="stats">
+          <div class="stat"><div class="v" id="overHearts">0</div><div class="k">Hearts</div></div>
+          <div class="stat"><div class="v" id="overCats">0</div><div class="k">Cats</div></div>
+          <div class="stat"><div class="v" id="overDist">0</div><div class="k">Meters</div></div>
+        </div>
+      </div>
+      <button id="retryBtn" class="gold">Try Again ♥</button>
+      <button id="backBtn" class="ghost">Edit Character</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   RUN TO ME — game logic
+   ============================================================ */
+
+/* -------- LOVE NOTES --------
+   Edit these freely! These pop every 5 hearts collected.
+   Keep them short — a single screen line works best.            */
+const LOVE_NOTES = [
+  "i love you ♥",
+  "you make my world softer",
+  "every step toward you",
+  "you're my favorite thought",
+  "stay with me always",
+  "you smell like home",
+  "i'd run any distance for you",
+  "your laugh is my favorite song",
+  "thank you for being you",
+  "forever yours ♥",
+  "you're the best part of my day",
+  "still falling for you"
+];
+/* ---------------------------- */
+
+// ---------- Palettes ----------
+const SKIN_TONES = ["#fde4cf","#f6c89f","#e2a679","#b8825a","#8a5a3b","#5b3a26"];
+const HAIR_COLORS = ["#2a1a10","#5a3320","#8b5a2b","#caa472","#e8c873","#d94f4f","#a85ad6","#3d6fb0"];
+const OUTFIT_COLORS = ["#ff7aa2","#ff5577","#c44dd6","#7a5dd6","#5da6d6","#5dd6a8","#e8a93a","#fff0c2","#ffffff","#3a2230"];
+const HAIR_STYLES = ["short","long","ponytail"];
+const GENDERS = ["fem","masc"];
+
+const STORAGE_KEY = "runToMe.character.v1";
+
+// ---------- State ----------
+let character = loadCharacter() || {
+  name:"",
+  gender:"fem",
+  hairStyle:"long",
+  hairColor:HAIR_COLORS[0],
+  outfit:OUTFIT_COLORS[0],
+  skin:SKIN_TONES[1]
+};
+
+function loadCharacter(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return null;
+    const c = JSON.parse(raw);
+    if(!c || !c.name) return null;
+    return c;
+  }catch(e){ return null; }
+}
+function saveCharacter(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(character)); }catch(e){}
+}
+
+// ---------- Screen routing ----------
+const screens = {
+  create: document.getElementById("screenCreate"),
+  start:  document.getElementById("screenStart"),
+  over:   document.getElementById("screenOver"),
+};
+const hud = document.getElementById("hud");
+function show(name){
+  for(const k in screens) screens[k].classList.add("hidden");
+  if(screens[name]) screens[name].classList.remove("hidden");
+  hud.classList.toggle("hidden", name!=="game");
+}
+
+// ---------- Character Creator UI ----------
+const nameInput = document.getElementById("nameInput");
+function buildSwatches(container, colors, key){
+  container.innerHTML = "";
+  colors.forEach(c=>{
+    const el = document.createElement("div");
+    el.className = "swatch" + (character[key]===c ? " sel" : "");
+    el.style.background = c;
+    el.onclick = ()=>{ character[key]=c; buildSwatches(container, colors, key); drawPreview(previewCtx, character, true); };
+    container.appendChild(el);
+  });
+}
+function buildChips(container, options, key, labels){
+  container.innerHTML = "";
+  options.forEach((o,i)=>{
+    const el = document.createElement("div");
+    el.className = "chip" + (character[key]===o ? " sel" : "");
+    el.textContent = (labels?labels[i]:o);
+    el.onclick = ()=>{ character[key]=o; buildChips(container, options, key, labels); drawPreview(previewCtx, character, true); };
+    container.appendChild(el);
+  });
+}
+function refreshCreatorUI(){
+  nameInput.value = character.name || "";
+  buildChips(document.getElementById("genderRow"), GENDERS, "gender", ["Feminine","Masculine"]);
+  buildChips(document.getElementById("hairStyleRow"), HAIR_STYLES, "hairStyle", ["Short","Long","Ponytail"]);
+  buildSwatches(document.getElementById("hairColorRow"), HAIR_COLORS, "hairColor");
+  buildSwatches(document.getElementById("outfitRow"), OUTFIT_COLORS, "outfit");
+  buildSwatches(document.getElementById("skinRow"), SKIN_TONES, "skin");
+}
+
+document.getElementById("confirmBtn").onclick = ()=>{
+  const nm = (nameInput.value||"").trim();
+  if(!nm){ nameInput.focus(); nameInput.style.borderColor="#ff3a5a"; setTimeout(()=>nameInput.style.borderColor="",800); return; }
+  character.name = nm.slice(0,14);
+  saveCharacter();
+  goToStart();
+};
+document.getElementById("editLink").onclick = ()=>{ show("create"); refreshCreatorUI(); };
+document.getElementById("backBtn").onclick = ()=>{ show("create"); refreshCreatorUI(); };
+document.getElementById("playBtn").onclick = ()=>{ startGame(); };
+document.getElementById("retryBtn").onclick = ()=>{ startGame(); };
+
+function goToStart(){
+  document.getElementById("startTitle").textContent = (character.name||"Your") + "'s Run";
+  document.getElementById("startTagline").textContent = "run to me, " + (character.name||"love") + " ♥";
+  show("start");
+  // start preview anim
+  startPreviewAnim();
+}
+
+// ---------- Pixel character drawing ----------
+/* Draws a blocky pixel character into a ctx at given center x,y,scale (pixels per block).
+   Uses a 14x18 grid of blocks roughly. anim = bob phase. happy = grin overlay. */
+function drawCharacter(ctx, ch, cx, cy, scale, anim, opts){
+  opts = opts||{};
+  const bob = Math.sin(anim*Math.PI*2)*scale*0.4;
+  const armSwing = Math.sin(anim*Math.PI*2)*scale*1.2;
+  const legSwing = Math.sin(anim*Math.PI*2)*scale*1.0;
+  const skin = ch.skin;
+  const hair = ch.hairColor;
+  const outfit = ch.outfit;
+  // shoes / pants tone derived
+  const pants = ch.gender==="masc" ? "#3a2a55" : shade(outfit,-0.25);
+  const shoe  = "#2a1a18";
+  const eye   = "#1a0e16";
+
+  const px = (x,y,w,h,c)=>{ ctx.fillStyle=c; ctx.fillRect(Math.round(cx + x*scale), Math.round(cy + y*scale + bob), Math.ceil(w*scale), Math.ceil(h*scale)); };
+
+  // shadow
+  ctx.fillStyle = "rgba(0,0,0,0.22)";
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 9*scale, 5*scale, 1.2*scale, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Legs
+  const legY = 5;
+  px(-2.2, legY + legSwing*0.05, 1.8, 3.2, pants);
+  px( 0.4, legY - legSwing*0.05, 1.8, 3.2, pants);
+  px(-2.4, legY+3.0, 2.0, 0.8, shoe);
+  px( 0.4, legY+3.0, 2.0, 0.8, shoe);
+
+  // Body / outfit
+  if(ch.gender==="fem"){
+    // dress: trapezoid-ish (wider at bottom)
+    px(-2.2, 1, 4.4, 1.6, outfit);
+    px(-2.8, 2.4, 5.6, 2.4, outfit);
+    // collar
+    px(-1.2, 0.6, 2.4, 0.5, shade(outfit,-0.2));
+  } else {
+    px(-2.2, 1, 4.4, 4.0, outfit);
+    px(-1.2, 0.8, 2.4, 0.5, shade(outfit,-0.3));
+  }
+
+  // Arms
+  px(-3.0, 1.2 + armSwing*0.05, 1.0, 3.0, outfit);
+  px( 2.0, 1.2 - armSwing*0.05, 1.0, 3.0, outfit);
+  px(-3.0, 4.1 + armSwing*0.05, 1.0, 0.8, skin);
+  px( 2.0, 4.1 - armSwing*0.05, 1.0, 0.8, skin);
+
+  // Head
+  px(-2.0,-2.6, 4.0, 3.4, skin);
+
+  // Hair
+  if(ch.hairStyle==="short"){
+    px(-2.2,-3.0, 4.4, 1.4, hair);
+    px(-2.2,-2.0, 0.8, 1.2, hair);
+    px( 1.4,-2.0, 0.8, 1.2, hair);
+  } else if(ch.hairStyle==="long"){
+    px(-2.4,-3.2, 4.8, 1.6, hair);
+    px(-2.6,-2.0, 0.8, 4.2, hair);
+    px( 1.8,-2.0, 0.8, 4.2, hair);
+  } else { // ponytail
+    px(-2.2,-3.0, 4.4, 1.4, hair);
+    px( 2.0,-1.6, 1.0, 2.4, hair);
+    px( 2.6,-0.4, 0.6, 1.6, hair);
+  }
+
+  // Face
+  px(-1.2,-1.4, 0.6, 0.6, eye);
+  px( 0.6,-1.4, 0.6, 0.6, eye);
+  // cheeks
+  px(-1.6,-0.6, 0.6, 0.4, "#ff8aa8");
+  px( 1.0,-0.6, 0.6, 0.4, "#ff8aa8");
+  // mouth
+  if(opts.happy){
+    px(-0.8,-0.2, 1.6, 0.4, "#b1324d");
+    px(-1.0,-0.4, 0.4, 0.3, "#b1324d");
+    px( 0.6,-0.4, 0.4, 0.3, "#b1324d");
+  } else if(opts.hurt){
+    px(-0.6, 0.0, 1.2, 0.4, "#b1324d");
+  } else {
+    px(-0.6,-0.2, 1.2, 0.3, "#b1324d");
+  }
+}
+
+function shade(hex, amt){
+  // hex like #rrggbb, amt -1..1
+  const h = hex.replace("#","");
+  const r = parseInt(h.substr(0,2),16);
+  const g = parseInt(h.substr(2,2),16);
+  const b = parseInt(h.substr(4,2),16);
+  const f = (v)=> Math.max(0, Math.min(255, Math.round(v + (amt<0 ? v*amt : (255-v)*amt))));
+  return "#" + [f(r),f(g),f(b)].map(v=>v.toString(16).padStart(2,"0")).join("");
+}
+
+// ---------- Preview canvases ----------
+const previewCanvas = document.getElementById("previewCanvas");
+previewCanvas.width = 140; previewCanvas.height = 170;
+const previewCtx = previewCanvas.getContext("2d");
+previewCtx.imageSmoothingEnabled = false;
+
+const startPrevCanvas = document.getElementById("startPreviewCanvas");
+const startPrevCtx = startPrevCanvas.getContext("2d");
+startPrevCtx.imageSmoothingEnabled=false;
+
+let previewT = 0;
+function drawPreview(ctx, ch, isCreator){
+  const w = ctx.canvas.width, h = ctx.canvas.height;
+  // soft gradient sky already via CSS bg; clear:
+  ctx.clearRect(0,0,w,h);
+  // ground stripe
+  ctx.fillStyle = "#ffb8c8";
+  ctx.fillRect(0, h-22, w, 22);
+  ctx.fillStyle = "#ff8aa8";
+  ctx.fillRect(0, h-26, w, 4);
+  drawCharacter(ctx, ch, w/2, h-40, 8, previewT, {});
+  // name tag
+  if(ch.name){
+    ctx.fillStyle = "#fff6e8";
+    ctx.fillRect(w/2-40, 6, 80, 18);
+    ctx.strokeStyle = "#3a2230"; ctx.lineWidth=2;
+    ctx.strokeRect(w/2-40, 6, 80, 18);
+    ctx.fillStyle = "#3a2230";
+    ctx.font = "bold 11px ui-monospace, monospace";
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(ch.name.toUpperCase(), w/2, 16);
+  }
+}
+let previewRAF = null;
+function previewLoop(){
+  previewT = (performance.now()/600) % 1;
+  drawPreview(previewCtx, character, true);
+  previewRAF = requestAnimationFrame(previewLoop);
+}
+previewLoop();
+
+let startPrevRAF = null;
+function startPreviewAnim(){
+  cancelAnimationFrame(startPrevRAF);
+  const loop = ()=>{
+    const t = (performance.now()/600)%1;
+    const ctx = startPrevCtx;
+    const w = ctx.canvas.width, h = ctx.canvas.height;
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle="#ffb8c8"; ctx.fillRect(0,h-22,w,22);
+    ctx.fillStyle="#ff8aa8"; ctx.fillRect(0,h-26,w,4);
+    previewT = t;
+    drawCharacter(ctx, character, w/2, h-40, 9, t, {happy:true});
+    startPrevRAF = requestAnimationFrame(loop);
+  };
+  loop();
+}
+
+// ============================================================
+// GAME
+// ============================================================
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+ctx.imageSmoothingEnabled=false;
+
+let DPR = Math.max(1, Math.min(2, window.devicePixelRatio||1));
+let W=0, H=0;
+function resize(){
+  const stage = document.getElementById("stage");
+  const rect = stage.getBoundingClientRect();
+  W = rect.width; H = rect.height;
+  canvas.width = Math.floor(W*DPR);
+  canvas.height = Math.floor(H*DPR);
+  canvas.style.width = W+"px";
+  canvas.style.height= H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.imageSmoothingEnabled=false;
+}
+window.addEventListener("resize", resize);
+new ResizeObserver(resize).observe(document.getElementById("stage"));
+resize();
+
+// Lane projection: returns {x, y, scale} for given lane index (-1,0,1) at z (0=horizon, 1=near).
+function project(lane, z){
+  const horizonY = H*0.30;
+  const bottomY  = H*1.05;
+  const y = horizonY + (bottomY - horizonY) * z;
+  // road half-width grows from small to large
+  const halfTop = W*0.05;
+  const halfBot = W*0.55;
+  const half = halfTop + (halfBot - halfTop)*z;
+  const x = W/2 + lane * (half * 0.55);
+  const scale = 0.15 + z*1.2;
+  return {x, y, scale};
+}
+
+let game = null;
+function newGame(){
+  return {
+    lane: 0,
+    targetLane: 0,
+    laneT: 0,
+    jumpY: 0,
+    jumpV: 0,
+    onGround: true,
+    speed: 0.55, // z per second baseline
+    distance: 0,
+    hearts: 0,
+    cats: 0,
+    objects: [],
+    cats_trail: [], // {laneHistory:[{lane,t}], ...}
+    spawnTimer: 0,
+    over: false,
+    overReason: "",
+    flashT: 0,
+    happyT: 0,
+    hurtT: 0,
+    roadScroll: 0,
+    cloudT: 0,
+    runTime:0,
+    bobPhase:0,
+    posHistory: [], // {lane, jumpY, t}
+  };
+}
+
+function startGame(){
+  game = newGame();
+  show("game");
+  lastT = performance.now();
+  requestAnimationFrame(loop);
+}
+
+// Spawning
+function spawnObject(){
+  // Choose lane(s). Sometimes spawn crocodile group leaving one safe lane.
+  const r = Math.random();
+  if(r < 0.45){
+    // crocodile(s)
+    const num = Math.random() < 0.25 ? 2 : 1;
+    const lanes = [-1,0,1].sort(()=>Math.random()-0.5).slice(0,num);
+    for(const ln of lanes){
+      game.objects.push({type:"croc", lane:ln, z:0, anim:Math.random()});
+    }
+  } else if(r < 0.85){
+    // hearts - line of 1-3 in one lane
+    const ln = [-1,0,1][Math.floor(Math.random()*3)];
+    const n = 1 + Math.floor(Math.random()*3);
+    for(let i=0;i<n;i++){
+      game.objects.push({type:"heart", lane:ln, z: -i*0.06, anim:Math.random()});
+    }
+  } else {
+    // cat
+    const ln = [-1,0,1][Math.floor(Math.random()*3)];
+    game.objects.push({type:"cat", lane:ln, z:0, anim:Math.random()});
+  }
+}
+
+// Input
+let touchStart = null;
+const stageEl = document.getElementById("stage");
+stageEl.addEventListener("touchstart", (e)=>{
+  if(e.touches.length>0){
+    touchStart = {x:e.touches[0].clientX, y:e.touches[0].clientY, t:performance.now()};
+  }
+}, {passive:true});
+stageEl.addEventListener("touchend", (e)=>{
+  if(!touchStart) return;
+  const t = e.changedTouches[0];
+  const dx = t.clientX - touchStart.x;
+  const dy = t.clientY - touchStart.y;
+  const adx = Math.abs(dx), ady = Math.abs(dy);
+  if(Math.max(adx,ady) < 20){ /* tap */ }
+  else if(adx > ady){ if(dx>0) tryLane(1); else tryLane(-1); }
+  else { if(dy<0) tryJump(); }
+  touchStart=null;
+}, {passive:true});
+window.addEventListener("keydown",(e)=>{
+  if(!game || game.over) return;
+  if(e.key==="ArrowLeft") tryLane(-1);
+  else if(e.key==="ArrowRight") tryLane(1);
+  else if(e.key==="ArrowUp" || e.key===" " || e.code==="Space") tryJump();
+});
+
+function tryLane(dir){
+  if(!game||game.over) return;
+  game.targetLane = Math.max(-1, Math.min(1, game.targetLane + dir));
+}
+function tryJump(){
+  if(!game||game.over) return;
+  if(game.onGround){
+    game.jumpV = -1.8; // up
+    game.onGround=false;
+  }
+}
+
+// HUD elements
+const hudHearts = document.getElementById("hudHearts");
+const hudCats   = document.getElementById("hudCats");
+const hudDist   = document.getElementById("hudDist");
+const noteEl    = document.getElementById("note");
+const flashEl   = document.getElementById("flash");
+
+function showNote(text){
+  noteEl.textContent = text;
+  noteEl.classList.add("show");
+  clearTimeout(showNote._t);
+  showNote._t = setTimeout(()=>noteEl.classList.remove("show"), 1800);
+}
+
+// Loop
+let lastT = 0;
+function loop(now){
+  const dt = Math.min(0.05, (now - lastT)/1000);
+  lastT = now;
+  if(!game) return;
+  if(!game.over) update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+
+function update(dt){
+  game.runTime += dt;
+  game.bobPhase = (game.bobPhase + dt*4) % 1;
+  // speed ramp
+  game.speed = Math.min(1.2, 0.55 + game.runTime*0.012);
+  game.distance += game.speed * dt * 60; // meters approx
+  game.roadScroll = (game.roadScroll + game.speed*dt*2.5) % 1;
+
+  // lane lerp
+  game.laneT += (game.targetLane - game.laneT) * Math.min(1, dt*12);
+
+  // jump physics
+  if(!game.onGround){
+    game.jumpV += dt * 5.5; // gravity
+    game.jumpY += game.jumpV * dt * 1.6;
+    if(game.jumpY >= 0){ game.jumpY=0; game.jumpV=0; game.onGround=true; }
+  }
+
+  // record position history for cat trail
+  game.posHistory.unshift({lane: game.laneT, jumpY: game.jumpY, t: game.runTime});
+  if(game.posHistory.length>240) game.posHistory.length=240;
+
+  // spawn
+  game.spawnTimer -= dt;
+  if(game.spawnTimer<=0){
+    spawnObject();
+    game.spawnTimer = 0.55 + Math.random()*0.45 - Math.min(0.3, game.runTime*0.005);
+  }
+
+  // move objects
+  for(const o of game.objects){
+    o.z += game.speed * dt;
+    o.anim = (o.anim + dt*2)%1;
+  }
+
+  // collisions
+  for(const o of game.objects){
+    if(o.collected) continue;
+    if(o.z > 0.78 && o.z < 1.05){
+      const sameLane = Math.abs(o.lane - game.laneT) < 0.55;
+      if(sameLane){
+        if(o.type==="heart"){
+          o.collected=true;
+          game.hearts++;
+          if(game.hearts % 5 === 0){
+            showNote(LOVE_NOTES[(Math.floor(game.hearts/5)-1) % LOVE_NOTES.length]);
+          }
+        } else if(o.type==="cat"){
+          o.collected=true;
+          game.cats++;
+          game.happyT = 0.6;
+          // attach a cat to trail with a delay index
+          game.cats_trail.push({delay: 18 + game.cats_trail.length*10, color: ["#caa472","#3a2a22","#e8c873","#ffffff","#a85a3a"][game.cats_trail.length%5] });
+        } else if(o.type==="croc"){
+          // jump check: if player is high enough, ok
+          if(game.jumpY < -0.35){
+            // safely passed
+          } else {
+            // BITE → game over
+            triggerGameOver("croc");
+            return;
+          }
+        }
+      }
+    }
+  }
+  // cull
+  game.objects = game.objects.filter(o=> o.z < 1.2 && !o.collected);
+
+  // timers
+  if(game.happyT>0) game.happyT -= dt;
+  if(game.hurtT>0) game.hurtT -= dt;
+  if(game.flashT>0){ game.flashT -= dt; flashEl.style.opacity = Math.max(0, game.flashT/0.3); }
+
+  // HUD
+  hudHearts.textContent = game.hearts;
+  hudCats.textContent = game.cats;
+  hudDist.textContent = Math.floor(game.distance);
+}
+
+function triggerGameOver(reason){
+  game.over = true;
+  game.hurtT = 0.6;
+  game.flashT = 0.3;
+  flashEl.style.opacity = 1;
+  setTimeout(()=>{
+    document.getElementById("overHearts").textContent = game.hearts;
+    document.getElementById("overCats").textContent = game.cats;
+    document.getElementById("overDist").textContent = Math.floor(game.distance);
+    const msgs = [
+      "the crocodile got you this time — run back to me?",
+      "ouch! one more try, " + (character.name||"love") + "?",
+      "even when you fall, i'm here. try again ♥",
+      "the swamp was hungry. let's outrun it together."
+    ];
+    document.getElementById("overMsg").textContent = msgs[Math.floor(Math.random()*msgs.length)];
+    flashEl.style.opacity = 0;
+    show("over");
+  }, 700);
+}
+
+// -------- Rendering --------
+function render(){
+  // sky gradient
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0, "#ffe7f0");
+  g.addColorStop(0.55,"#ffd0dc");
+  g.addColorStop(1, "#ffb3c2");
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+  // distant hills
+  ctx.fillStyle = "#d3a4c4";
+  drawHills(H*0.28, 30, 0.3);
+  ctx.fillStyle = "#c08aba";
+  drawHills(H*0.30, 22, 0.5);
+
+  // floating hearts in sky
+  game.cloudT = (game.cloudT + 0.002) % 1;
+  for(let i=0;i<6;i++){
+    const sx = ((i*123 + game.cloudT*W*0.5) % (W+40)) - 20;
+    const sy = 20 + (i*37)%80;
+    drawSkyHeart(sx, sy, 6 + (i%3)*2, "rgba(255,255,255,0.55)");
+  }
+
+  // ground
+  ctx.fillStyle = "#9bd47a";
+  ctx.fillRect(0, H*0.30, W, H);
+  // softer foreground
+  const gg = ctx.createLinearGradient(0,H*0.30,0,H);
+  gg.addColorStop(0,"rgba(155,212,122,0)");
+  gg.addColorStop(1,"rgba(120,180,90,0.6)");
+  ctx.fillStyle=gg; ctx.fillRect(0,H*0.30,W,H);
+
+  // road (perspective trapezoid)
+  drawRoad();
+
+  // sort objects + player + cats by z (player z=0.85 baseline)
+  const renderables = [];
+  for(const o of game.objects){
+    if(o.z<=0) continue;
+    renderables.push({z:o.z, kind:"obj", ref:o});
+  }
+  // player z
+  renderables.push({z:0.85, kind:"player"});
+  // cat trail
+  for(let i=0;i<game.cats_trail.length;i++){
+    const c = game.cats_trail[i];
+    const idx = Math.min(game.posHistory.length-1, c.delay);
+    const pos = game.posHistory[idx];
+    if(!pos) continue;
+    const z = 0.85 - (i+1)*0.04;
+    renderables.push({z, kind:"trailcat", ref:c, pos});
+  }
+  renderables.sort((a,b)=>a.z-b.z);
+
+  for(const r of renderables){
+    if(r.kind==="obj") drawObject(r.ref);
+    else if(r.kind==="player") drawPlayer();
+    else if(r.kind==="trailcat") drawTrailCat(r.ref, r.pos, r.z);
+  }
+}
+
+function drawHills(baseY, amp, phase){
+  ctx.beginPath();
+  ctx.moveTo(0, baseY);
+  const step = 20;
+  for(let x=0;x<=W;x+=step){
+    const y = baseY - Math.sin((x*0.02)+phase)*amp - Math.sin(x*0.01+phase*2)*amp*0.5;
+    ctx.lineTo(x,y);
+  }
+  ctx.lineTo(W, H); ctx.lineTo(0,H); ctx.closePath();
+  ctx.fill();
+}
+function drawSkyHeart(x,y,s,c){
+  ctx.fillStyle=c;
+  ctx.fillRect(x-s, y-s/2, s, s);
+  ctx.fillRect(x, y-s/2, s, s);
+  ctx.fillRect(x-s*1.5, y-s*0.2, s*3, s*0.8);
+  ctx.fillRect(x-s, y+s*0.6, s*2, s*0.6);
+  ctx.fillRect(x-s*0.4, y+s*1.2, s*0.8, s*0.5);
+}
+
+function drawRoad(){
+  // road polygon
+  const top = project(0,0); const botL = project(-1.6,1); const botR = project(1.6,1);
+  const topL = {x: W/2 - W*0.05, y: H*0.30};
+  const topR = {x: W/2 + W*0.05, y: H*0.30};
+  ctx.fillStyle = "#c98a6e";
+  ctx.beginPath();
+  ctx.moveTo(topL.x, topL.y); ctx.lineTo(topR.x, topR.y);
+  ctx.lineTo(botR.x, H); ctx.lineTo(botL.x, H);
+  ctx.closePath(); ctx.fill();
+
+  // road darker stripes for texture (scrolling)
+  const stripes = 14;
+  for(let i=0;i<stripes;i++){
+    const z = ((i/stripes) + game.roadScroll) % 1;
+    if(z<0.02) continue;
+    const yA = project(0,z).y;
+    const yB = project(0, Math.min(1, z+0.04)).y;
+    const halfA = (project(1.6,z).x - project(-1.6,z).x)/2;
+    const halfB = (project(1.6, Math.min(1,z+0.04)).x - project(-1.6, Math.min(1,z+0.04)).x)/2;
+    ctx.fillStyle = i%2===0 ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.04)";
+    ctx.beginPath();
+    ctx.moveTo(W/2-halfA, yA); ctx.lineTo(W/2+halfA, yA);
+    ctx.lineTo(W/2+halfB, yB); ctx.lineTo(W/2-halfB, yB);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // lane dividers - dashed
+  for(let lane of [-0.5, 0.5]){
+    for(let i=0;i<12;i++){
+      const z = ((i/12) + game.roadScroll) % 1;
+      const zNext = Math.min(1, z+0.04);
+      if(z<0.02) continue;
+      const a = project(lane*2, z);
+      const b = project(lane*2, zNext);
+      ctx.strokeStyle = "#fff6e8";
+      ctx.lineWidth = 1 + z*4;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+  }
+
+  // road edges
+  ctx.strokeStyle="#7a4a35"; ctx.lineWidth=3;
+  ctx.beginPath();
+  ctx.moveTo(topL.x, topL.y); ctx.lineTo(botL.x, H);
+  ctx.moveTo(topR.x, topR.y); ctx.lineTo(botR.x, H);
+  ctx.stroke();
+}
+
+function drawObject(o){
+  const p = project(o.lane, o.z);
+  const s = p.scale;
+  if(o.type==="heart"){
+    drawHeartSprite(p.x, p.y - 18*s + Math.sin(o.anim*Math.PI*2)*3*s, 8*s);
+  } else if(o.type==="cat"){
+    drawCatSprite(p.x, p.y - 6*s, 4*s, o.anim);
+  } else if(o.type==="croc"){
+    drawCrocSprite(p.x, p.y - 6*s, 5*s, o.anim);
+  }
+}
+
+function drawHeartSprite(cx, cy, s){
+  // blocky pixel heart
+  const px = (x,y,w,h,c)=>{ ctx.fillStyle=c; ctx.fillRect(cx + x*s, cy + y*s, Math.ceil(w*s), Math.ceil(h*s)); };
+  // shadow
+  ctx.fillStyle="rgba(0,0,0,0.2)";
+  ctx.beginPath(); ctx.ellipse(cx, cy+s*2.2, s*1.6, s*0.5, 0, 0, Math.PI*2); ctx.fill();
+  const c = "#ff4f78", l = "#ff8aa8", d="#b1324d";
+  // top bumps
+  px(-2,-2,2,1,c); px(0,-2,2,1,c);
+  px(-3,-1,6,1,c);
+  px(-3, 0,6,1,c);
+  px(-2, 1,4,1,c);
+  px(-1, 2,2,1,c);
+  // highlight
+  px(-2,-2,1,1,l); px(0,-2,1,1,l);
+  // outline
+  px(-3,-2,1,3,d); px(2,-2,1,3,d);
+  px(-2, 2,1,1,d); px(1,2,1,1,d);
+  px(-1, 3,2,1,d);
+}
+
+function drawCatSprite(cx, cy, s, anim){
+  // small blocky pixel cat (sitting)
+  const px = (x,y,w,h,c)=>{ ctx.fillStyle=c; ctx.fillRect(cx + x*s, cy + y*s, Math.ceil(w*s), Math.ceil(h*s)); };
+  ctx.fillStyle="rgba(0,0,0,0.25)";
+  ctx.beginPath(); ctx.ellipse(cx, cy+s*2.5, s*2, s*0.5, 0, 0, Math.PI*2); ctx.fill();
+  const body = "#caa472", dark="#7a5a3a", pink="#ff8aa8";
+  // body
+  px(-2, 0, 4, 2, body);
+  // head
+  px(-2,-2, 4, 2, body);
+  // ears
+  px(-2,-3, 1, 1, body);
+  px( 1,-3, 1, 1, body);
+  // eyes
+  px(-1,-1, 0.6, 0.6, "#1a0e16");
+  px( 0.4,-1, 0.6, 0.6, "#1a0e16");
+  // nose
+  px(-0.2,-0.3, 0.6, 0.4, pink);
+  // legs
+  px(-2, 2, 1, 1, dark);
+  px( 1, 2, 1, 1, dark);
+  // tail (swish)
+  const tw = Math.sin(anim*Math.PI*2)*0.6;
+  px(2, 0+tw*0.2, 1.4, 0.6, body);
+  px(2.8, -0.5+tw*0.4, 0.6, 1.4, body);
+}
+
+function drawCrocSprite(cx, cy, s, anim){
+  const px = (x,y,w,h,c)=>{ ctx.fillStyle=c; ctx.fillRect(cx + x*s, cy + y*s, Math.ceil(w*s), Math.ceil(h*s)); };
+  ctx.fillStyle="rgba(0,0,0,0.3)";
+  ctx.beginPath(); ctx.ellipse(cx, cy+s*2.6, s*3, s*0.6, 0, 0, Math.PI*2); ctx.fill();
+  const g = "#5da34a", gd="#356b2a", gl="#86c66a", w="#ffffff", d="#1a2e10";
+  // body
+  px(-3, 0, 6, 2, g);
+  px(-3.5,0.4, 7, 1.2, gd);
+  // back bumps
+  px(-2,-0.4, 0.6, 0.6, gd);
+  px(-1,-0.5, 0.6, 0.7, gd);
+  px( 0,-0.5, 0.6, 0.7, gd);
+  px( 1,-0.4, 0.6, 0.6, gd);
+  // legs
+  px(-2.5, 2, 1, 0.8, gd);
+  px( 1.5, 2, 1, 0.8, gd);
+  // tail
+  px(-4.5, 0.4, 1.5, 1.2, g);
+  px(-5.2, 0.7, 0.8, 0.8, gd);
+  // head (jaw snap)
+  const jaw = Math.abs(Math.sin(anim*Math.PI*2))*0.5;
+  // upper jaw
+  px(2.5,-0.2, 2.4, 0.8, g);
+  // teeth row
+  for(let i=0;i<5;i++) px(2.7+i*0.4, 0.6, 0.3, 0.3, w);
+  // lower jaw (animated)
+  px(2.5, 1.0+jaw, 2.4, 0.7, gl);
+  for(let i=0;i<5;i++) px(2.7+i*0.4, 1.0+jaw-0.3, 0.3, 0.3, w);
+  // eye
+  px(2.3,-0.6, 0.6, 0.6, w);
+  px(2.5,-0.5, 0.3, 0.4, d);
+}
+
+function drawPlayer(){
+  // place player at z~0.85
+  const z = 0.85;
+  const p = project(game.laneT, z);
+  const baseY = p.y;
+  const scale = (8 + p.scale*6); // pixel block size
+  const jumpPx = game.jumpY * scale * 6;
+  const opts = {};
+  if(game.happyT>0) opts.happy=true;
+  if(game.hurtT>0) opts.hurt=true;
+  // hurt flash
+  if(game.hurtT>0 && Math.floor(game.hurtT*20)%2===0){
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+  }
+  drawCharacter(ctx, character, p.x, baseY + jumpPx - scale*1.2, scale, game.bobPhase, opts);
+  if(game.hurtT>0 && Math.floor(game.hurtT*20)%2===0) ctx.restore();
+
+  // happy sparkles
+  if(game.happyT>0){
+    for(let i=0;i<4;i++){
+      const a = (game.runTime*5 + i)*Math.PI*0.7;
+      const r = 24 + (1-game.happyT/0.6)*20;
+      const sx = p.x + Math.cos(a)*r;
+      const sy = baseY + jumpPx - scale*4 + Math.sin(a)*r*0.5;
+      ctx.fillStyle="#ffe88a";
+      ctx.fillRect(sx-2, sy, 4, 4);
+      ctx.fillRect(sx, sy-2, 4, 4);
+    }
+  }
+}
+
+function drawTrailCat(c, pos, z){
+  const p = project(pos.lane, z);
+  const scale = 3 + p.scale*3;
+  const jumpPx = pos.jumpY * scale * 6;
+  // override color quickly
+  const save = ctx.fillStyle;
+  // draw cat with slight color shift
+  drawCatSpriteColor(p.x, p.y - 6*p.scale + jumpPx, scale, (performance.now()/300)%1, c.color);
+}
+function drawCatSpriteColor(cx,cy,s,anim,bodyColor){
+  const px = (x,y,w,h,col)=>{ ctx.fillStyle=col; ctx.fillRect(cx + x*s, cy + y*s, Math.ceil(w*s), Math.ceil(h*s)); };
+  ctx.fillStyle="rgba(0,0,0,0.25)";
+  ctx.beginPath(); ctx.ellipse(cx, cy+s*2.5, s*2, s*0.5, 0, 0, Math.PI*2); ctx.fill();
+  const body = bodyColor, dark=shade(bodyColor,-0.35), pink="#ff8aa8";
+  px(-2, 0, 4, 2, body);
+  px(-2,-2, 4, 2, body);
+  px(-2,-3, 1, 1, body);
+  px( 1,-3, 1, 1, body);
+  px(-1,-1, 0.6, 0.6, "#1a0e16");
+  px( 0.4,-1, 0.6, 0.6, "#1a0e16");
+  px(-0.2,-0.3, 0.6, 0.4, pink);
+  px(-2, 2, 1, 1, dark);
+  px( 1, 2, 1, 1, dark);
+  const tw = Math.sin(anim*Math.PI*2)*0.6;
+  px(2, 0+tw*0.2, 1.4, 0.6, body);
+  px(2.8, -0.5+tw*0.4, 0.6, 1.4, body);
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+refreshCreatorUI();
+if(character && character.name){
+  goToStart();
+} else {
+  show("create");
+}
+</script>
+</body>
+</html>
